@@ -1,0 +1,94 @@
+// ESP32 DevKit V1 + HC-SR04 - Obstacle Sensor (NO LCD)
+
+#define TRIG_PIN 2        // HC-SR04 Trigger pin
+#define ECHO_PIN 4        // HC-SR04 Echo pin
+
+#define DANGER_DISTANCE 30
+#define WARNING_DISTANCE 80
+#define MAX_DISTANCE 300
+
+unsigned long lastSensorRead = 0;
+unsigned long lastSerialSend = 0;
+const unsigned long SENSOR_INTERVAL = 200;
+const unsigned long SERIAL_INTERVAL = 250;
+
+String currentAlert = "CLEAR";
+int currentDistance = 0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  
+  delay(2000);
+  Serial.println("{\"status\":\"Sensor system initialized\"}");
+}
+
+void loop() {
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastSensorRead >= SENSOR_INTERVAL) {
+    currentDistance = readUltrasonic();
+    processAlert(currentDistance);
+    lastSensorRead = currentTime;
+  }
+
+  if (currentTime - lastSerialSend >= SERIAL_INTERVAL) {
+    sendSensorData();
+    lastSerialSend = currentTime;
+  }
+
+  handleSerialCommands();
+}
+
+int readUltrasonic() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  int distance = duration * 0.034 / 2;
+
+  if (distance > MAX_DISTANCE || distance == 0) {
+    return 0;
+  }
+
+  return distance;
+}
+
+void processAlert(int distance) {
+  if (distance > 0 && distance < DANGER_DISTANCE) {
+    currentAlert = "DANGER";
+  } else if (distance > 0 && distance < WARNING_DISTANCE) {
+    currentAlert = "WARNING";
+  } else if (distance > 0) {
+    currentAlert = "CLEAR";
+  } else {
+    currentAlert = "NO_SIGNAL";
+  }
+}
+
+void sendSensorData() {
+  Serial.print("{\"sensor_data\":{");
+  Serial.print("\"center\":" + String(currentDistance) + ",");
+  Serial.print("\"left\":0,");
+  Serial.print("\"right\":0,");
+  Serial.print("\"alert\":\"" + currentAlert + "\",");
+  Serial.print("\"timestamp\":" + String(millis()));
+  Serial.println("}}");
+}
+
+void handleSerialCommands() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+
+    if (command == "PING") {
+      Serial.println("{\"response\":\"PONG\"}");
+    } else if (command == "STATUS") {
+      Serial.println("{\"status\":\"RUNNING\",\"distance\":" + String(currentDistance) + ",\"alert\":\"" + currentAlert + "\"}");
+    }
+  }
+}
