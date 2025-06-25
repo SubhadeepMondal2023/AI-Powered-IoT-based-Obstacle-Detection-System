@@ -9,8 +9,7 @@ A Flutter mobile application that connects to the ThingSpeak IoT platform to mon
 - **Interactive charts** for data visualization  
 - **Historical data** tracking with timestamps  
 - **Dark/light mode** support  
-- **Responsive design** for all screen sizes  
-- **Simple data submission** interface  
+- **Responsive design** for all screen sizes   
 
 ## Technology Stack
 - **IoT Platform**: [ThingSpeak](https://thingspeak.com)  
